@@ -1,9 +1,24 @@
 <?php
 
+    /* $email and $password to get user inputs from $_POST superglobal */
     $email = $password = "";
+    /* To store errors relevent to user inputs. (NOSUCHUSER will appear if the user credentials are wrong) */
     $emailErr = $passwordErr = $noSuchUser = "";
 
+    session_start();
+
+    /* If the user is already connected and the session variable is set then redirect the user directly to dashboard page */
+    if(isset($_SESSION["user-id"])) {
+        header("location: dashboard.php");
+    } else {
+        
+    }
+
+    // The code inside this if statement will be executed only if the user press sign in button
     if(isset($_POST["sign-in"])) {
+
+        /* CHECK USER INPUTS */
+
         if(empty($_POST["email"])) {
             $emailErr = "Email should not be empty";
         } else {
@@ -27,36 +42,44 @@
             $password = cleanData($_POST["password"]);
         }
 
+        // Here if you can use associative array will be better
         if($emailErr != "" || $passwordErr != "") {
             
         } else {
-            $servername = "localhost";
-            $usrname = "hostname47";
-            $psswrd = "truestory";
-            $dbname = "logindb";
-    
-            try {
-                $conn = new PDO("mysql:host=$servername; dbname=$dbname;", $usrname, $psswrd);
-    
-                $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-                $stmt = $conn->prepare("SELECT * FROM Users WHERE email = :mail AND password = :password");
-    
-                $stmt->bindParam(":mail", $email);
-                $stmt->bindParam(":password", $password);
-    
-                $stmt->execute();
-    
-                if($stmt->rowCount() == 0) {
-                    $noSuchUser = "No such user with these credentials";
-                } else {
-                    session_start();
-                    
-                }
-    
-            } catch (PDOException $ex) {
-                echo "PDO Error: " . $ex->getMessage();
+
+            $conn = mysqli_connect("localhost", "hostname47", "truestory", "logindb");
+
+            if(!$conn) {
+                echo "Connection error: " . mysqli_connect_error($conn);
             }
+
+            $sqlQuery = "SELECT id, username FROM Users WHERE email='".$email."' AND password='".md5($password)."'";
+            $resultSet = mysqli_query($conn, $sqlQuery) or die("database error:". mysqli_error($conn));
+            $isValidLogin = mysqli_num_rows($resultSet);
+
+            // Here we check if we get a record of the user by checking the number of rows
+            if($isValidLogin){
+
+                // check wether the user check the remember me feature
+                if(!empty($_POST["remember-me"])) {
+                    // If so store the credentials into cookies
+                    // Notice that password is encrypted for security 
+                    setcookie("loginEmail", $email, time()+ (10 * 365 * 24 * 60 * 60));  
+                    setcookie("loginPassword",	$password, time()+ (10 * 365 * 24 * 60 * 60));
+                } else {
+                    setcookie ("loginEmail",""); 
+                    setcookie ("loginPassword","");
+                }
+                $userDetails = mysqli_fetch_assoc($resultSet);
+
+                // Here we get the user id from the query by using the assoc-array to store it into session superglobal so that we can access it later in the dashboard page
+                $_SESSION["user-id"] = $userDetails['id'];
+                $_SESSION["user-name"] = $userDetails['username'];
+                // Redirect the user to dashboard page
+                header("location:dashboard.php");
+            } else {
+                $noSuchUser = "Invalid user credentials.";		 
+            } 
         }
     }
 
@@ -104,12 +127,19 @@
                 <p style="font-size: 18px">Or sign in with credentials</p>
                 <span ></span>
                 <form id="login-form" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">
+                    <!-- Top error message -->
                     <label for="" name="no-such-user" style="display: block; margin-bottom: 8px; color: rgb(250, 53, 53);"><?php echo $noSuchUser ?></label>
+
+                    <!-- Email -->
                     <label for="email">Email</label> <span style="color: rgb(226, 52, 52); margin-left: 15px;"><?php echo $emailErr; ?></span>
-                    <input placeholder="Email" type="text" name="email" id="email">
+                    <input placeholder="Email" type="text" name="email" id="email" value="<?php if(isset($_COOKIE["loginEmail"])) {echo $_COOKIE["loginEmail"];} else { echo $email;} ?>">
+
+                    <!-- Password -->
                     <label for="password">Password</label> <span style="color: rgb(226, 52, 52); margin-left: 15px;"><?php echo $passwordErr; ?></span>
-                    <input placeholder="Password" type="password" name="password" id="password">
-                    <input type="checkbox" name="remember-me" id="remember-me"><label id="remember-label" for="remember-me">Remember me.</label>
+                    <input placeholder="Password" type="password" name="password" id="password" value="<?php if(isset($_COOKIE["loginPassword"])) {echo $_COOKIE["loginPassword"];} ?>">
+
+                    <!-- Remember me -->
+                    <input type="checkbox" name="remember-me" id="remember-me"><label id="remember-label" for="remember-me" <?php if(isset($_COOKIE["loginEmail"])) { ?> checked <?php } ?> >Remember me.</label>
                     
                     <input type="submit" name="sign-in" value="SIGN IN">
                 </form>

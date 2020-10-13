@@ -55,7 +55,7 @@
         }
 
         if($emailErr != "" || $passwordErr != "" || $genderErr != "") {
-            
+            echo $emailErr . ', ' . $passwordErr . ", " . $genderErr;
         } else {
             $servername = "localhost";
             $usrname = "hostname47";
@@ -68,7 +68,7 @@
                 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
                 // I didn't check the existance of an already existed email because email should be unique and username also shoould be unique
-                $stmt = $conn->prepare("INSERT INTO Users (username, email, gender, password) VALUES (:username, :email, :gender, :password)");
+                $stmt = $conn->prepare("INSERT INTO Users (username, email, gender, password) VALUES (:username, :email, :gender, md5(:password))");
                 
                 $stmt->bindParam(":username", $username);
                 $stmt->bindParam(":email", $email);
@@ -143,9 +143,6 @@
                         <option value="female" <?php if($gender == "female"){?> selected="selected" <?php } ?>>FEMALE</option>
                         <option value="other" <?php if($gender == "other"){?> selected="selected" <?php } ?>>OTHER</option>
                     </select>
-
-                    <input type="checkbox" name="remember-me" id="remember-me"><label id="remember-label" for="remember-me">Remember me.</label>
-                    
                     <input type="submit" name="sign-up" value="SIGN UP">
                 </form>
             </div>
